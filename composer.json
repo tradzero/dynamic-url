@@ -3,6 +3,11 @@
     "type": "library",
     "license": "MIT",
     "require": {},
+    "autoload": {
+        "psr-4": {
+            "Tradzero\\DynamicUrl\\": "src"
+        }
+    },
     "extra": {
         "laravel": {
             "providers": [
