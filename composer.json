@@ -1,0 +1,13 @@
+{
+    "name": "tradzero/dynamic-url",
+    "type": "library",
+    "license": "MIT",
+    "require": {},
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Tradzero\\DynamicUrl\\ServiceProvider"
+            ]
+        }
+    }
+}
