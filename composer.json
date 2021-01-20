@@ -11,7 +11,7 @@
     "extra": {
         "laravel": {
             "providers": [
-                "Tradzero\\DynamicUrl\\ServiceProvider"
+                "Tradzero\\DynamicUrl\\DynamicUrlServiceProvider"
             ]
         }
     }
