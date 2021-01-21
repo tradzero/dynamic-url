@@ -57,7 +57,7 @@ class DynamicUrl
 
     protected static function checkProvider()
     {
-        if (config('dynamic_url.provider' == 'env')) {
+        if (config('dynamic_url.provider') == 'env') {
             throw new ProviderNotSupportExcetion();
         }
     }

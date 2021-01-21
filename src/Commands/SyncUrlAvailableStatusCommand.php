@@ -3,17 +3,19 @@
 namespace Tradzero\DynamicUrl\Commands;
 
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\RequestException;
-use GuzzleHttp\Pool;
-use GuzzleHttp\Psr7\Response;
 use Illuminate\Console\Command;
 use Tradzero\DynamicUrl\Models\DynamicUrl;
+use GuzzleHttp\Exception\ServerException;
+use GuzzleHttp\Promise\Utils;
+use Illuminate\Support\Arr;
 
 class SyncUrlAvailableStatusCommand extends Command
 {
     protected $signature = 'sync:url_available_status';
 
     protected $description = 'sync url available status, it should be run every minute';
+
+    protected $endpoints;
 
     public function __construct()
     {
@@ -23,40 +25,43 @@ class SyncUrlAvailableStatusCommand extends Command
     public function handle()
     {
         $endpoints = DynamicUrl::where('enable', true)->get();
+        $this->endpoints = $endpoints;
 
         $client = new Client();
 
-        $requests = function () use ($client, $endpoints) {
-            foreach ($endpoints as $endpoint) {
-                $url = $endpoint->url;
-                yield function () use ($client, $url) {
-                    return $client->getAsync($url);
-                };
-            }
-        };
+        $promises = $endpoints->mapWithKeys(function ($endpoint) use ($client) {
+            $id = $endpoint->id;
+            $request = $client->getAsync($endpoint->url);
+            return [$id => $request];
+        });
+        $promises = $promises->toArray();
 
-        $pool = new Pool($client, $requests(), [
-            'concurrency' => 10,
-            'fulfilled' => function (Response $response, $index) use ($endpoints) {
-                $url = $response->getHeader('Referer');
-                $endpoints->where('url', $url)->update([
-                    'available' => true,
-                    'check_at' => now(),
-                ]);
-            },
-            'rejected' => function (RequestException $reason, $index) use ($endpoints) {
-                $url = $reason->getRequest()->getHeader('Referer');
-                $endpoints->where('url', $url)->update([
-                    'available' => false,
-                    'check_at' => now(),
-                ]);
-            },
-        ]);
-        
-        $promise = $pool->promise();
-        
-        $promise->wait();
+        $responses = Utils::settle($promises)->wait();
+
+        foreach ($responses as $key => $response) {
+            if ($reason = Arr::get($response, 'reason')) {
+                if (! $reason instanceof ServerException) {
+                    $this->updateEndpoint($key, false);
+                    continue;
+                }
+            }
+            $this->updateEndpoint($key, true);
+        }
 
         return 0;
+    }
+
+    protected function updateEndpoint($id, $result)
+    {
+        $endpoints = $this->endpoints;
+        $endpoint = $endpoints->where('id', $id)->first();
+        if ($endpoint) {
+            $raw = (bool) $endpoint->available;
+            if ($result != $raw) {
+                $endpoint->update([
+                    'available' => $result
+                ]);
+            }
+        }
     }
 }
