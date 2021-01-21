@@ -3,6 +3,7 @@
 namespace Tradzero\DynamicUrl;
 
 use Illuminate\Support\ServiceProvider;
+use Tradzero\DynamicUrl\Commands\SyncUrlAvailableStatusCommand;
 
 class DynamicUrlServiceProvider extends ServiceProvider
 {
@@ -18,5 +19,11 @@ class DynamicUrlServiceProvider extends ServiceProvider
         ]);
 
         $this->loadMigrationsFrom(__DIR__.'/migrations');
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                SyncUrlAvailableStatusCommand::class,
+            ]);
+        }
     }
 }
