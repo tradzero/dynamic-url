@@ -3,6 +3,7 @@
 namespace Tradzero\DynamicUrl\Commands;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ClientException;
 use Illuminate\Console\Command;
 use Tradzero\DynamicUrl\Models\DynamicUrl;
 use GuzzleHttp\Exception\ServerException;
@@ -27,7 +28,9 @@ class SyncUrlAvailableStatusCommand extends Command
         $endpoints = DynamicUrl::where('enable', true)->get();
         $this->endpoints = $endpoints;
 
-        $client = new Client();
+        $client = new Client([
+            'timeout' => 5
+        ]);
 
         $promises = $endpoints->mapWithKeys(function ($endpoint) use ($client) {
             $id = $endpoint->id;
@@ -40,7 +43,7 @@ class SyncUrlAvailableStatusCommand extends Command
 
         foreach ($responses as $key => $response) {
             if ($reason = Arr::get($response, 'reason')) {
-                if (! $reason instanceof ServerException) {
+                if (! $reason instanceof ServerException && ! $reason instanceof ClientException) {
                     $this->updateEndpoint($key, false);
                     continue;
                 }
@@ -48,6 +51,9 @@ class SyncUrlAvailableStatusCommand extends Command
             $this->updateEndpoint($key, true);
         }
 
+        $endpoints->toQuery()->update([
+            'check_at' => now(),
+        ]);
         return 0;
     }
 

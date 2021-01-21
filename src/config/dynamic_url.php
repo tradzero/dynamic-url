@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'provider' => 'env', // env or database
+    'provider' => 'database', // env or database
 
     'endpoints' => env('DYNAMIC_URLS', ''),
 ];

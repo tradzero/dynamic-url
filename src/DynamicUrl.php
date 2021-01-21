@@ -8,14 +8,16 @@ use Tradzero\DynamicUrl\Models\DynamicUrl as ModelsDynamicUrl;
 
 class DynamicUrl
 {
-    public static function buildUrl($params)
+    public static function buildUrl($params = [])
     {
-        $endpoint = self::getAvailableEndpoint();
-        if (! $endpoint) {
+        $url = self::getAvailableEndpoint();
+        if (! $url) {
             throw new NoAvailableEndpointException();
         }
         $queryString = http_build_query($params, '', '&', PHP_QUERY_RFC3986);
-        $url = rtrim('/', $endpoint) . '/';
+        if ($queryString) {
+            $queryString = '?' . $queryString;
+        }
         return $url . $queryString;
     }
 
@@ -23,9 +25,9 @@ class DynamicUrl
     {
         self::checkProvider();
         ModelsDynamicUrl::firstOrCreate([
-            'enable' => true
-        ], [
             'url' => $url
+        ], [
+            'enable' => true
         ]);
         return true;
     }
@@ -66,12 +68,13 @@ class DynamicUrl
     {
         $endpoints = self::getAllEndpoints();
         $url = $endpoints->random();
+        $url = rtrim($url, '/');
         return $url;
     }
 
     public static function getAllEndpoints()
     {
-        if (config('dynamic_url.provider' == 'env')) {
+        if (config('dynamic_url.provider') == 'env') {
             $rawEndpoints = env('dynamic_url.endpoints');
             $endpoints = explode(',', $rawEndpoints);
             return collect($endpoints);
